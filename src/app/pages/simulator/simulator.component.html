@@ -1,0 +1,220 @@
+<div class="simulator-container">
+  
+  <div class="header-section">
+    <h1>Tu Plan de Ahorro</h1>
+    <p>Simula y descubre tu mejor opción</p>
+  </div>
+
+  <mat-stepper [linear]="false" #stepper orientation="horizontal" class="custom-stepper">
+    
+    <mat-step label="Objetivo">
+      <div class="step-content">
+        <h2 class="step-title">¿Cuál es tu meta principal?</h2>
+        <mat-radio-group class="cards-group" [ngModel]="profile.goal" (ngModelChange)="update('goal', $event)">
+          <div class="selection-card" [class.active]="profile.goal === 'PENSION'" (click)="update('goal', 'PENSION')">
+            <mat-icon>volunteer_activism</mat-icon>
+            <h3>Mejorar Pensión</h3>
+            <p>Maximizar beneficios</p>
+            <mat-radio-button value="PENSION" class="hidden-radio"></mat-radio-button>
+          </div>
+          <div class="selection-card" [class.active]="profile.goal === 'PROJECT'" (click)="update('goal', 'PROJECT')">
+            <mat-icon>flight_takeoff</mat-icon>
+            <h3>Proyecto / Emergencia</h3>
+            <p>Liquidez total</p>
+            <mat-radio-button value="PROJECT" class="hidden-radio"></mat-radio-button>
+          </div>
+        </mat-radio-group>
+        <div class="actions-row">
+          <button mat-flat-button color="primary" matStepperNext>Siguiente</button>
+        </div>
+      </div>
+    </mat-step>
+
+    <mat-step label="Datos">
+      <div class="step-content">
+        <div class="inputs-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Sueldo Líquido</mat-label>
+            <span matTextPrefix>$&nbsp;</span>
+            <input matInput type="number" [ngModel]="profile.salary" (ngModelChange)="update('salary', $event)">
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Ahorro Mensual</mat-label>
+            <span matTextPrefix>$&nbsp;</span>
+            <input matInput type="number" [ngModel]="profile.monthlyContribution" (ngModelChange)="update('monthlyContribution', $event)">
+          </mat-form-field>
+          <div class="slider-box">
+            <label>Plazo estimado: {{ profile.horizon }} años</label>
+            <mat-slider min="1" max="30" step="1" discrete showTickMarks>
+              <input matSliderThumb [ngModel]="profile.horizon" (ngModelChange)="update('horizon', $event)">
+            </mat-slider>
+          </div>
+        </div>
+        <div class="actions-row">
+          <button mat-button matStepperPrevious>Atrás</button>
+          <button mat-flat-button color="primary" matStepperNext>Ver Estrategia</button>
+        </div>
+      </div>
+    </mat-step>
+
+    <mat-step label="Configurar">
+      <div class="step-content results-container">
+        
+        <div *ngIf="service.recommendation() as res; else noData">
+          
+          <div *ngIf="res.bestProduct === 'CUENTA2'" class="funds-layout">
+            <h2 class="result-title">Diseña tu Mix de Inversión</h2>
+            <p class="subtitle">Elige los fondos y porcentajes:</p>
+
+            <div class="funds-list">
+              @for (fund of localFunds(); track fund.type) {
+                <div class="fund-row" [class.selected]="fund.percent > 0" [style.border-left-color]="fund.color">
+                  <div class="check-area" (click)="toggleFund(fund)">
+                    <div class="checkbox" [class.checked]="fund.percent > 0" 
+                         [style.background-color]="fund.percent > 0 ? fund.color : 'transparent'" 
+                         [style.border-color]="fund.percent > 0 ? fund.color : '#ccc'">
+                      <mat-icon *ngIf="fund.percent > 0">check</mat-icon>
+                    </div>
+                  </div>
+                  <div class="fund-info" (click)="toggleFund(fund)">
+                    <span class="f-type" [style.color]="fund.color">Fondo {{ fund.type }}</span>
+                    <span class="f-desc">{{ fund.label }}</span>
+                  </div>
+                  <div class="fund-slider" *ngIf="fund.percent > 0">
+                    <mat-slider min="0" max="100" step="5" discrete><input matSliderThumb [(ngModel)]="fund.percent"></mat-slider>
+                    <span class="pct-val">{{ fund.percent }}%</span>
+                  </div>
+                  <div class="fund-placeholder" *ngIf="fund.percent === 0" (click)="toggleFund(fund)"><span>0%</span></div>
+                </div>
+              }
+            </div>
+
+            <div class="total-bar-container" [class.invalid]="!isValidDistribution">
+              <span class="lbl">Total asignado: <strong>{{ totalPercent }}%</strong></span>
+              <span class="msg" *ngIf="!isValidDistribution">Debes sumar 100%</span>
+            </div>
+
+            <div class="actions-area">
+              <button mat-flat-button color="primary" class="full-width" 
+                      [disabled]="!isValidDistribution" (click)="goToResult()">
+                VER PROYECCIÓN FINAL
+              </button>
+            </div>
+          </div>
+
+          <div *ngIf="res.bestProduct === 'APV'" class="apv-layout">
+            <h2 class="result-title">Recomendación APV</h2>
+            
+            <mat-card class="recommendation-card hero">
+              <div class="ribbon recommended">RECOMENDADO</div>
+              <ng-container *ngTemplateOutlet="regimeDetail; context: {$implicit: getRecommendedRegime(res.apvComparison!)}"></ng-container>
+              <mat-card-actions align="end">
+                 <button mat-flat-button color="primary" (click)="goToResult()">ELEGIR ESTA OPCIÓN</button>
+              </mat-card-actions>
+            </mat-card>
+
+            <div class="section-divider"><span>O PREFIERES...</span></div>
+
+            <mat-card class="recommendation-card secondary">
+              <div class="ribbon secondary-ribbon">ALTERNATIVA</div>
+              <ng-container *ngTemplateOutlet="regimeDetail; context: {$implicit: getAlternativeRegime(res.apvComparison!)}"></ng-container>
+              <mat-card-actions align="end">
+                <button mat-stroked-button color="primary" (click)="selectRegime(getAlternativeRegime(res.apvComparison!).regime!); goToResult()">
+                  CAMBIAR A ESTA
+                </button>
+             </mat-card-actions>
+            </mat-card>
+          </div>
+
+        </div>
+        <ng-template #noData><p>Completa tus datos primero.</p></ng-template>
+      </div>
+    </mat-step>
+
+    <mat-step label="Resultado">
+      <div class="step-content results-container">
+        
+        <div *ngIf="service.recommendation()?.bestProduct === 'CUENTA2' && projectionResult() as result" class="results-wrapper">
+          
+          <h2 class="result-title">Tu Potencial de Ahorro</h2>
+          
+          <mat-card class="projection-card hero">
+            <div class="ribbon">TU ESTRATEGIA</div>
+            <mat-card-header>
+              <mat-card-title>En {{ profile.horizon }} años tendrías:</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="big-number">
+                {{ result.userStrategyAmount | currency:'CLP':'symbol':'1.0-0' }}
+              </div>
+              <p class="legal-text">*Rentabilidad estimada. No garantizada.</p>
+            </mat-card-content>
+            <mat-card-actions>
+              <button mat-flat-button color="accent" class="cta-btn">CONTRATAR AHORA</button>
+            </mat-card-actions>
+          </mat-card>
+
+          <h3 class="alternatives-title">Comparativa: ¿Qué pasa con otros fondos?</h3>
+          <div class="scenarios-grid">
+            @for (scenario of result.scenarios; track scenario.fundType) {
+              <mat-card class="scenario-card">
+                <div class="fund-badge" [style.background-color]="scenario.color">
+                  Fondo {{ scenario.fundType }}
+                </div>
+                <div class="s-content">
+                  <span class="s-amt">{{ scenario.amount | currency:'CLP':'symbol':'1.0-0' }}</span>
+                  <div class="s-diff" [class.positive]="scenario.difference > 0" [class.negative]="scenario.difference < 0">
+                    @if(scenario.difference > 0) {
+                      <mat-icon>arrow_upward</mat-icon> {{ scenario.difference | currency:'CLP':'symbol':'1.0-0' }}
+                    } @else if (scenario.difference < 0) {
+                      <mat-icon>arrow_downward</mat-icon> {{ (scenario.difference * -1) | currency:'CLP':'symbol':'1.0-0' }}
+                    } @else {
+                      <span>Igual</span>
+                    }
+                  </div>
+                </div>
+              </mat-card>
+            }
+          </div>
+          
+          <div class="actions-row">
+            <button mat-button matStepperPrevious>Volver a Editar Mix</button>
+          </div>
+        </div>
+
+        <div *ngIf="service.recommendation()?.bestProduct === 'APV'" class="results-wrapper">
+          <h2 class="result-title">¡Excelente elección!</h2>
+          <p class="subtitle">Has seleccionado optimizar tu pensión con:</p>
+
+          <mat-card class="projection-card hero">
+            <div class="ribbon">CONFIRMADO</div>
+            <ng-container *ngTemplateOutlet="regimeDetail; context: {$implicit: getFinalRegimeSelection()}"></ng-container>
+            <mat-card-actions>
+              <button mat-flat-button color="accent" class="cta-btn">IR A CONTRATAR</button>
+            </mat-card-actions>
+          </mat-card>
+
+          <div class="actions-row">
+            <button mat-button matStepperPrevious>Cambiar Régimen</button>
+          </div>
+        </div>
+
+      </div>
+    </mat-step>
+
+  </mat-stepper>
+
+  <ng-template #regimeDetail let-data>
+    <mat-card-header>
+      <div mat-card-avatar class="icon-avatar"><mat-icon>verified_user</mat-icon></div>
+      <mat-card-title>{{ data.primaryMessage }}</mat-card-title>
+      <mat-card-subtitle>{{ data.secondaryMessage }}</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="benefit-highlight" *ngIf="(data.benefitValue ?? 0) > 0">
+        <span class="label">Beneficio estimado:</span>
+        <span class="amount">+ {{ data.benefitValue | currency:'CLP':'symbol':'1.0-0' }} / año</span>
+      </div>
+    </mat-card-content>
+  </ng-template>
+</div>
